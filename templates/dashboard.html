@@ -1,0 +1,51 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="overview">
+    <h2>Participants awaiting confirmation</h2>
+    {% if registrations %}
+      <div class="table-wrapper">
+        <table>
+          <thead>
+            <tr>
+              <th>Name</th>
+              <th>Surname</th>
+              <th>Date</th>
+              <th>ID</th>
+              <th>HRDA no.</th>
+              <th>Course</th>
+              <th>Κατηγορία απασχόλησης</th>
+              <th>Email</th>
+              <th>Phone</th>
+              <th>Status</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            {% for registration in registrations %}
+              <tr>
+                <td data-label="Name">{{ registration['name'] }}</td>
+                <td data-label="Surname">{{ registration['surname'] }}</td>
+                <td data-label="Date">{{ registration['registration_date'] or '—' }}</td>
+                <td data-label="ID">{{ registration['id_number'] }}</td>
+                <td data-label="HRDA no.">{{ registration['hrda_number'] or '—' }}</td>
+                <td data-label="Course">{{ registration['course_name'] }}</td>
+                <td data-label="Κατηγορία απασχόλησης">{{ registration['employment_category'] or '—' }}</td>
+                <td data-label="Email"><a href="mailto:{{ registration['email'] }}">{{ registration['email'] or '—' }}</a></td>
+                <td data-label="Phone"><a href="tel:{{ registration['phone'] }}">{{ registration['phone'] or '—' }}</a></td>
+                <td class="status" data-label="Status">{{ registration['status'] }}</td>
+                <td class="actions" data-label="Actions">
+                  <form method="post" action="{{ url_for('mark_called', registration_id=registration['id']) }}">
+                    <button type="submit" class="button primary">Mark as Called</button>
+                  </form>
+                </td>
+              </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+    {% else %}
+      <p class="empty">All participants have been contacted.</p>
+    {% endif %}
+  </section>
+{% endblock %}
