@@ -28,9 +28,7 @@ except ImportError as exc:  # pragma: no cover - handled at runtime
 def create_app() -> Flask:
     app = Flask(__name__)
     base_dir = Path(__file__).resolve().parent
-
-    secret_key = os.environ.get("COURSES_MANAGER_SECRET_KEY") or "change-this-key"
-    app.config["SECRET_KEY"] = secret_key
+    app.config.setdefault("SECRET_KEY", os.environ.get("COURSES_MANAGER_SECRET_KEY", "change-this-key"))
     app.config["DATABASE"] = str(base_dir / "app.db")
     app.config["EXCEL_FILE"] = str(base_dir / "registrations.xlsx")
 
