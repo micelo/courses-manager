@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+
+{% block content %}
+  <section class="auth">
+    <h2>Sign in</h2>
+    <form method="post" class="card">
+      <label for="username">Username</label>
+      <input id="username" name="username" type="text" autofocus required>
+
+      <label for="password">Password</label>
+      <input id="password" name="password" type="password" required>
+
+      <button type="submit" class="button primary">Log in</button>
+    </form>
+    <p class="hint">Use the credentials configured on the server. A default account is created on the first run.</p>
+  </section>
+{% endblock %}
