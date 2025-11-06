@@ -1,29 +1,29 @@
 {% extends "base.html" %}
 
 {% block content %}
-  <section class="overview">
+<section class="overview">
     <h2>Participants awaiting confirmation</h2>
     {% if registrations %}
-      <div class="table-wrapper">
+    <div class="table-wrapper">
         <table>
-          <thead>
+            <thead>
             <tr>
-              <th>Name</th>
-              <th>Surname</th>
-              <th>Date</th>
-              <th>ID</th>
-              <th>HRDA no.</th>
-              <th>Course</th>
-              <th>Κατηγορία απασχόλησης</th>
-              <th>Email</th>
-              <th>Phone</th>
-              <th>Status</th>
-              <th>Actions</th>
+                <th>Name</th>
+                <th>Surname</th>
+                <th>Date</th>
+                <th>ID</th>
+                <th>HRDA no.</th>
+                <th>Course</th>
+                <th>Κατηγορία απασχόλησης</th>
+                <th>Email</th>
+                <th>Phone</th>
+                <th>Status</th>
+                <th>Actions</th>
             </tr>
-          </thead>
-          <tbody>
+            </thead>
+            <tbody>
             {% for registration in registrations %}
-              <tr>
+            <tr>
                 <td data-label="Name">{{ registration['name'] }}</td>
                 <td data-label="Surname">{{ registration['surname'] }}</td>
                 <td data-label="Date">{{ registration['registration_date'] or '—' }}</td>
@@ -31,21 +31,30 @@
                 <td data-label="HRDA no.">{{ registration['hrda_number'] or '—' }}</td>
                 <td data-label="Course">{{ registration['course_name'] }}</td>
                 <td data-label="Κατηγορία απασχόλησης">{{ registration['employment_category'] or '—' }}</td>
-                <td data-label="Email"><a href="mailto:{{ registration['email'] }}">{{ registration['email'] or '—' }}</a></td>
-                <td data-label="Phone"><a href="tel:{{ registration['phone'] }}">{{ registration['phone'] or '—' }}</a></td>
+                <td data-label="Email"><a href="mailto:{{ registration['email'] }}">{{ registration['email'] or '—'
+                    }}</a></td>
+                <td data-label="Phone"><a href="tel:{{ registration['phone'] }}">{{ registration['phone'] or '—' }}</a>
+                </td>
                 <td class="status" data-label="Status">{{ registration['status'] }}</td>
                 <td class="actions" data-label="Actions">
-                  <form method="post" action="{{ url_for('mark_called', registration_id=registration['id']) }}">
-                    <button type="submit" class="button primary">Mark as Called</button>
-                  </form>
+                    <form method="post" action="{{ url_for('mark_called', registration_id=registration['id']) }}">
+                        <button type="submit" class="button primary">Mark as Called</button>
+                    </form>
                 </td>
-              </tr>
+            </tr>
             {% endfor %}
-          </tbody>
+            </tbody>
         </table>
-      </div>
+    </div>
     {% else %}
-      <p class="empty">All participants have been contacted.</p>
+    <p class="empty">All participants have been contacted.</p>
     {% endif %}
-  </section>
+</section>
+<div style="margin-top:1.5rem;display:flex;gap:1rem;">
+    {% if page > 1 %}
+    <a class="button secondary" href="{{ url_for('dashboard', page=page-1) }}">Previous</a>
+    {% endif %}
+    <a class="button secondary" href="{{ url_for('dashboard', page=page+1) }}">Next</a>
+</div>
+
 {% endblock %}

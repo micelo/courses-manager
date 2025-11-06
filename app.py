@@ -28,7 +28,8 @@ except ImportError as exc:  # pragma: no cover - handled at runtime
 def create_app() -> Flask:
     app = Flask(__name__)
     base_dir = Path(__file__).resolve().parent
-    app.config.setdefault("SECRET_KEY", os.environ.get("COURSES_MANAGER_SECRET_KEY", "change-this-key"))
+    app.config["SECRET_KEY"] = os.environ.get("COURSES_MANAGER_SECRET_KEY",
+                                              "bb6510346d1d2d1fb6aa5802c04e625b05c4e29141ab1320b86705dff3cf2874")
     app.config["DATABASE"] = str(base_dir / "app.db")
     app.config["EXCEL_FILE"] = str(base_dir / "registrations.xlsx")
 
@@ -82,7 +83,7 @@ def _initialize_database() -> None:
             phone TEXT,
             status TEXT NOT NULL DEFAULT 'PENDING',
             UNIQUE(id_number, course_name)
-        )
+)
         """
     )
     db.commit()
@@ -105,16 +106,40 @@ def _ensure_default_user() -> None:
     db.close()
 
 
-HEADER_ALIASES: Dict[str, Tuple[str, ...]] = {
-    "name": ("name", "first name"),
-    "surname": ("surname", "last name"),
-    "registration_date": ("date", "registration date", "ημερομηνία"),
-    "id_number": ("id", "id number", "identification number", "αρ. ταυτότητας"),
-    "hrda_number": ("hrda no.", "hrda number", "αρ. αναιρεσης"),
-    "course_name": ("name of the course", "course name", "program name", "όνομα προγράμματος"),
-    "employment_category": ("κατηγορία απασχόλησης", "employment category"),
-    "email": ("email", "e-mail"),
-    "phone": ("phone", "phone number", "telephone", "τηλέφωνο"),
+HEADER_ALIASES = {
+    "name": (
+        "name", "first name", "όνομα",
+        "usr_first_name"
+    ),
+    "surname": (
+        "surname", "last name", "επώνυμο", "επίθετο",
+        "usr_last_name"
+    ),
+    "registration_date": (
+        "date", "registration date", "ημερομηνία",
+        "applic_creation_date"
+    ),
+    "id_number": (
+        "id", "id number", "identification number", "αρ. ταυτότητας", "ταυτότητα", "civil id"
+    ),
+    "hrda_number": (
+        "hrda no.", "hrda number", "αρ. αναδ", "αρ. ανaδ", "αρ. ανaΔ", "hrda no"
+    ),
+    "course_name": (
+        "name of the course", "course name", "program name", "όνομα προγράμματος", "πρόγραμμα",
+        "saa_title",
+        "SAA_TITLE"
+    ),
+    "employment_category": (
+        "employment category", "κατηγορία απασχόλησης",
+        "saa_employment_status"
+    ),
+    "email": (
+        "email", "e-mail", "usr_email"
+    ),
+    "phone": (
+        "phone", "phone number", "telephone", "τηλέφωνο", "usr_tel"
+    ),
 }
 
 REQUIRED_COLUMNS = {"name", "surname", "id_number", "course_name"}
@@ -172,16 +197,24 @@ def register_routes(app: Flask) -> None:
     @app.route("/")
     @login_required
     def dashboard():
-        registrations = get_db().execute(
+        page = int(request.args.get("page", 1))
+        per_page = 20
+        offset = (page - 1) * per_page
+
+        db = get_db()
+        registrations = db.execute(
             """
             SELECT id, name, surname, registration_date, id_number, hrda_number,
                    course_name, employment_category, email, phone, status
             FROM registrations
             WHERE status != 'CALLED'
             ORDER BY COALESCE(registration_date, '') ASC, id ASC
-            """
+            LIMIT ? OFFSET ?
+            """,
+            (per_page, offset),
         ).fetchall()
-        return render_template("dashboard.html", registrations=registrations)
+
+        return render_template("dashboard.html", registrations=registrations, page=page)
 
     @app.post("/registrations/<int:registration_id>/call")
     @login_required
@@ -314,17 +347,17 @@ def sync_from_excel() -> int:
         db.execute(
             """
             INSERT INTO registrations (
-                name, surname, registration_date, id_number, hrda_number,
-                course_name, employment_category, email, phone
-            ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
-            ON CONFLICT(id_number, course_name) DO UPDATE SET
-                name = excluded.name,
-                surname = excluded.surname,
-                registration_date = excluded.registration_date,
-                hrda_number = excluded.hrda_number,
-                employment_category = excluded.employment_category,
-                email = excluded.email,
-                phone = excluded.phone
+    name, surname, registration_date, id_number, hrda_number,
+    course_name, employment_category, email, phone
+) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+ON CONFLICT(id_number, course_name) DO UPDATE SET
+    name = excluded.name,
+    surname = excluded.surname,
+    registration_date = excluded.registration_date,
+    hrda_number = excluded.hrda_number,
+    employment_category = excluded.employment_category,
+    email = excluded.email,
+    phone = excluded.phone
             """,
             placeholders,
         )
@@ -337,4 +370,4 @@ def sync_from_excel() -> int:
 app = create_app()
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(port=8000, debug=True)
