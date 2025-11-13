@@ -26,13 +26,13 @@
                 {% endfor %}
             </select>
         </div>
-        <div class="field">
-            <label for="date_from">Registration date from</label>
-            <input id="date_from" type="date" name="date_from" value="{{ selected_date_from }}">
-        </div>
-        <div class="field">
-            <label for="date_to">Registration date to</label>
-            <input id="date_to" type="date" name="date_to" value="{{ selected_date_to }}">
+        <div class="field range-field">
+            <label for="date_from">Registration date range</label>
+            <div class="date-range">
+                <input id="date_from" type="date" name="date_from" value="{{ selected_date_from }}" placeholder="From">
+                <span class="range-separator">to</span>
+                <input id="date_to" type="date" name="date_to" value="{{ selected_date_to }}" placeholder="To">
+            </div>
         </div>
         <div class="filters-actions">
             <button type="submit" class="button primary">Apply filters</button>
