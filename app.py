@@ -2,7 +2,7 @@ import os
 import sqlite3
 from datetime import datetime, date
 from pathlib import Path
-from typing import Dict, Optional, Tuple
+from typing import Dict, Optional, Tuple, List
 
 from flask import (
     Flask,
@@ -106,6 +106,29 @@ def _ensure_default_user() -> None:
     db.close()
 
 
+COURSES: List[str] = [
+    "Αναδυόμενες Τεχνολογίες και Δεξιότητες για Ανάπτυξη πιο Έξυπνων και Πράσινων Πόλεων",
+    "Αναδυόμενες Τεχνολογίες και Δεξιότητες για Ανάπτυξη πιο Έξυπνων και Πράσινων Πόλεων (Μόνο για Ανέργους)",
+    "Αντλίες Θερμότητας στην Πράσινη Μετάβαση",
+    "Αντλίες Θερμότητας στην Πράσινη Μετάβαση (Μόνο για Ανέργους)",
+    "Αποθήκευση Ενέργειας: Πολύπλευρος Ρόλος στο Σύγχρονο Ηλεκτρικό Δίκτυο",
+    "Αποθήκευση Ενέργειας: Πολύπλευρος Ρόλος στο Σύγχρονο Ηλεκτρικό Δίκτυο (Μόνο για Ανέργους)",
+    "Εισαγωγή στα Κτήρια με Σχεδόν Μηδενική Κατανάλωση Ενέργειας",
+    "Εισαγωγή στα Κτήρια με Σχεδόν Μηδενική Κατανάλωση Ενέργειας (Μόνο για Ανέργους)",
+    "Έλεγχος και Επιθεώρηση Φωτοβολταϊκών Συστημάτων",
+    "Έλεγχος και Επιθεώρηση Φωτοβολταϊκών Συστημάτων (Μόνο για Ανέργους)",
+    "Έννοιες, Πλαίσιο και Πολιτικές για μια Πράσινη Οικονομία χωρίς Αποκλεισμούς",
+    "Ενσωμάτωση της Ηλεκτρικής Κινητικότητας στο Σύστημα Ηλεκτρισμού",
+    "Ενσωμάτωση της Ηλεκτρικής Κινητικότητας στο Σύστημα Ηλεκτρισμού (Μόνο για Ανέργους)",
+    "Έξυπνα Ηλεκτρικά Δίκτυα: Τεχνολογίες, Διαχείριση και Πρακτικές Εφαρμογές",
+    "Έξυπνα Ηλεκτρικά Δίκτυα: Τεχνολογίες, Διαχείριση και Πρακτικές Εφαρμογές (Μόνο για Ανέργους)",
+    "Έξυπνα Συστήματα Διαχείρισης Ενέργειας",
+    "Έξυπνα Συστήματα Διαχείρισης Ενέργειας (Μόνο για Ανέργους)",
+    "Κανόνες Αγοράς Ηλεκτρισμού",
+    "Κυκλική Οικονομία ΦΒ Συστημάτων: Ευκαιρίες για Επισκευή, Επαναχρησιμοποίηση ή Ανακύκλωση",
+    "Κυκλική Οικονομία ΦΒ Συστημάτων: Ευκαιρίες για Επισκευή, Επαναχρησιμοποίηση ή Ανακύκλωση (Μόνο για Ανέργους)",
+]
+
 HEADER_ALIASES = {
     "name": (
         "name", "first name", "όνομα",
@@ -194,27 +217,130 @@ def register_routes(app: Flask) -> None:
         flash("You have been logged out.", "info")
         return redirect(url_for("login"))
 
-    @app.route("/")
-    @login_required
-    def dashboard():
-        page = int(request.args.get("page", 1))
+    def _parse_filters() -> Tuple[int, str, str]:
+        try:
+            page = int(request.args.get("page", 1))
+        except ValueError:
+            page = 1
+        page = max(page, 1)
+
+        selected_course = request.args.get("course", "").strip()
+        selected_date = request.args.get("date", "").strip()
+
+        return page, selected_course, selected_date
+
+    def _fetch_registrations(
+        base_condition: str,
+        base_params: Tuple[object, ...],
+        selected_course: str,
+        selected_date: str,
+        page: int,
+    ) -> Tuple[List[sqlite3.Row], bool]:
         per_page = 20
         offset = (page - 1) * per_page
 
-        db = get_db()
-        registrations = db.execute(
-            """
+        conditions = [base_condition]
+        params: List[object] = list(base_params)
+
+        if selected_course:
+            conditions.append("course_name = ?")
+            params.append(selected_course)
+
+        if selected_date:
+            conditions.append("registration_date = ?")
+            params.append(selected_date)
+
+        where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
+
+        query = f"""
             SELECT id, name, surname, registration_date, id_number, hrda_number,
                    course_name, employment_category, email, phone, status
             FROM registrations
-            WHERE status != 'CALLED'
+            {where_clause}
             ORDER BY COALESCE(registration_date, '') ASC, id ASC
             LIMIT ? OFFSET ?
-            """,
-            (per_page, offset),
-        ).fetchall()
+        """
 
-        return render_template("dashboard.html", registrations=registrations, page=page)
+        params.extend([per_page, offset])
+
+        db = get_db()
+        registrations = db.execute(query, tuple(params)).fetchall()
+
+        # Determine whether there might be more records for pagination
+        has_next = len(registrations) == per_page
+        return registrations, has_next
+
+    @app.route("/")
+    @login_required
+    def dashboard():
+        page, selected_course, selected_date = _parse_filters()
+        registrations, has_next = _fetch_registrations(
+            "status != ?",
+            ("CALLED",),
+            selected_course,
+            selected_date,
+            page,
+        )
+
+        return render_template(
+            "dashboard.html",
+            registrations=registrations,
+            page=page,
+            has_next=has_next,
+            selected_course=selected_course,
+            selected_date=selected_date,
+            courses=COURSES,
+            allow_call_action=True,
+            pagination_endpoint="dashboard",
+            prev_url=url_for(
+                "dashboard",
+                page=page - 1,
+                course=selected_course or None,
+                date=selected_date or None,
+            ) if page > 1 else None,
+            next_url=url_for(
+                "dashboard",
+                page=page + 1,
+                course=selected_course or None,
+                date=selected_date or None,
+            ) if has_next else None,
+        )
+
+    @app.route("/called")
+    @login_required
+    def called_participants():
+        page, selected_course, selected_date = _parse_filters()
+        registrations, has_next = _fetch_registrations(
+            "status = ?",
+            ("CALLED",),
+            selected_course,
+            selected_date,
+            page,
+        )
+
+        return render_template(
+            "dashboard.html",
+            registrations=registrations,
+            page=page,
+            has_next=has_next,
+            selected_course=selected_course,
+            selected_date=selected_date,
+            courses=COURSES,
+            allow_call_action=False,
+            pagination_endpoint="called_participants",
+            prev_url=url_for(
+                "called_participants",
+                page=page - 1,
+                course=selected_course or None,
+                date=selected_date or None,
+            ) if page > 1 else None,
+            next_url=url_for(
+                "called_participants",
+                page=page + 1,
+                course=selected_course or None,
+                date=selected_date or None,
+            ) if has_next else None,
+        )
 
     @app.post("/registrations/<int:registration_id>/call")
     @login_required
