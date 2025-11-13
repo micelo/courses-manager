@@ -2,7 +2,42 @@
 
 {% block content %}
 <section class="overview">
-    <h2>Participants awaiting confirmation</h2>
+    <div class="overview-header">
+        <h2>
+            {% if allow_call_action %}
+                Participants awaiting confirmation
+            {% else %}
+                Participants already called
+            {% endif %}
+        </h2>
+        <div class="overview-tabs">
+            <a class="tab-link{% if allow_call_action %} active{% endif %}" href="{{ url_for('dashboard') }}">Pending</a>
+            <a class="tab-link{% if not allow_call_action %} active{% endif %}" href="{{ url_for('called_participants') }}">Called</a>
+        </div>
+    </div>
+
+    <form method="get" class="filters">
+        <div class="field">
+            <label for="course">Course</label>
+            <select id="course" name="course">
+                <option value="">All courses</option>
+                {% for course in courses %}
+                    <option value="{{ course }}"{% if course == selected_course %} selected{% endif %}>{{ course }}</option>
+                {% endfor %}
+            </select>
+        </div>
+        <div class="field">
+            <label for="date">Registration date</label>
+            <input id="date" type="date" name="date" value="{{ selected_date }}">
+        </div>
+        <div class="filters-actions">
+            <button type="submit" class="button primary">Apply filters</button>
+            {% if selected_course or selected_date %}
+                <a class="button secondary" href="{{ url_for(pagination_endpoint) }}">Reset</a>
+            {% endif %}
+        </div>
+    </form>
+
     {% if registrations %}
     <div class="table-wrapper">
         <table>
@@ -18,7 +53,7 @@
                 <th>Email</th>
                 <th>Phone</th>
                 <th>Status</th>
-                <th>Actions</th>
+                {% if allow_call_action %}<th>Actions</th>{% endif %}
             </tr>
             </thead>
             <tbody>
@@ -31,30 +66,51 @@
                 <td data-label="HRDA no.">{{ registration['hrda_number'] or '—' }}</td>
                 <td data-label="Course">{{ registration['course_name'] }}</td>
                 <td data-label="Κατηγορία απασχόλησης">{{ registration['employment_category'] or '—' }}</td>
-                <td data-label="Email"><a href="mailto:{{ registration['email'] }}">{{ registration['email'] or '—'
-                    }}</a></td>
-                <td data-label="Phone"><a href="tel:{{ registration['phone'] }}">{{ registration['phone'] or '—' }}</a>
+                <td data-label="Email">
+                    {% if registration['email'] %}
+                        <a href="mailto:{{ registration['email'] }}">{{ registration['email'] }}</a>
+                    {% else %}
+                        —
+                    {% endif %}
+                </td>
+                <td data-label="Phone">
+                    {% if registration['phone'] %}
+                        <a href="tel:{{ registration['phone'] }}">{{ registration['phone'] }}</a>
+                    {% else %}
+                        —
+                    {% endif %}
                 </td>
                 <td class="status" data-label="Status">{{ registration['status'] }}</td>
+                {% if allow_call_action %}
                 <td class="actions" data-label="Actions">
                     <form method="post" action="{{ url_for('mark_called', registration_id=registration['id']) }}">
                         <button type="submit" class="button primary">Mark as Called</button>
                     </form>
                 </td>
+                {% endif %}
             </tr>
             {% endfor %}
             </tbody>
         </table>
     </div>
     {% else %}
-    <p class="empty">All participants have been contacted.</p>
+    <p class="empty">
+        {% if allow_call_action %}
+            No participants match the selected filters.
+        {% else %}
+            No called participants match the selected filters.
+        {% endif %}
+    </p>
     {% endif %}
 </section>
-<div style="margin-top:1.5rem;display:flex;gap:1rem;">
-    {% if page > 1 %}
-    <a class="button secondary" href="{{ url_for('dashboard', page=page-1) }}">Previous</a>
+
+<div class="pagination">
+    {% if prev_url %}
+        <a class="button secondary" href="{{ prev_url }}">Previous</a>
     {% endif %}
-    <a class="button secondary" href="{{ url_for('dashboard', page=page+1) }}">Next</a>
+    {% if next_url %}
+        <a class="button secondary" href="{{ next_url }}">Next</a>
+    {% endif %}
 </div>
 
 {% endblock %}
