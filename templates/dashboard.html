@@ -22,17 +22,21 @@
             <select id="course" name="course">
                 <option value="">All courses</option>
                 {% for course in courses %}
-                    <option value="{{ course }}"{% if course == selected_course %} selected{% endif %}>{{ course }}</option>
+                    <option value="{{ course }}"{% if course == selected_course %} selected{% endif %}>{{ course | uppercase_no_tonos }}</option>
                 {% endfor %}
             </select>
         </div>
-        <div class="field">
-            <label for="date">Registration date</label>
-            <input id="date" type="date" name="date" value="{{ selected_date }}">
+        <div class="field range-field">
+            <label for="date_from">Registration date range</label>
+            <div class="date-range">
+                <input id="date_from" type="date" name="date_from" value="{{ selected_date_from }}" placeholder="From">
+                <span class="range-separator">to</span>
+                <input id="date_to" type="date" name="date_to" value="{{ selected_date_to }}" placeholder="To">
+            </div>
         </div>
         <div class="filters-actions">
             <button type="submit" class="button primary">Apply filters</button>
-            {% if selected_course or selected_date %}
+            {% if selected_course or selected_date_from or selected_date_to %}
                 <a class="button secondary" href="{{ url_for(pagination_endpoint) }}">Reset</a>
             {% endif %}
         </div>
@@ -64,7 +68,7 @@
                 <td data-label="Date">{{ registration['registration_date'] or '—' }}</td>
                 <td data-label="ID">{{ registration['id_number'] }}</td>
                 <td data-label="HRDA no.">{{ registration['hrda_number'] or '—' }}</td>
-                <td data-label="Course">{{ registration['course_name'] }}</td>
+                <td data-label="Course">{{ registration['course_name'] | uppercase_no_tonos }}</td>
                 <td data-label="Κατηγορία απασχόλησης">{{ registration['employment_category'] or '—' }}</td>
                 <td data-label="Email">
                     {% if registration['email'] %}
