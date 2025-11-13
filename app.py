@@ -1,5 +1,6 @@
 import os
 import sqlite3
+import unicodedata
 from datetime import datetime, date
 from pathlib import Path
 from typing import Dict, Optional, Tuple, List
@@ -25,6 +26,14 @@ except ImportError as exc:  # pragma: no cover - handled at runtime
     ) from exc
 
 
+def uppercase_no_tonos(value: Optional[str]) -> str:
+    if not value:
+        return ""
+    normalized = unicodedata.normalize("NFD", str(value))
+    stripped = "".join(c for c in normalized if unicodedata.category(c) != "Mn")
+    return stripped.upper()
+
+
 def create_app() -> Flask:
     app = Flask(__name__)
     base_dir = Path(__file__).resolve().parent
@@ -32,6 +41,8 @@ def create_app() -> Flask:
                                               "bb6510346d1d2d1fb6aa5802c04e625b05c4e29141ab1320b86705dff3cf2874")
     app.config["DATABASE"] = str(base_dir / "app.db")
     app.config["EXCEL_FILE"] = str(base_dir / "registrations.xlsx")
+
+    app.jinja_env.filters["uppercase_no_tonos"] = uppercase_no_tonos
 
     with app.app_context():
         _initialize_database()
@@ -217,7 +228,7 @@ def register_routes(app: Flask) -> None:
         flash("You have been logged out.", "info")
         return redirect(url_for("login"))
 
-    def _parse_filters() -> Tuple[int, str, str]:
+    def _parse_filters() -> Tuple[int, str, str, str]:
         try:
             page = int(request.args.get("page", 1))
         except ValueError:
@@ -225,15 +236,17 @@ def register_routes(app: Flask) -> None:
         page = max(page, 1)
 
         selected_course = request.args.get("course", "").strip()
-        selected_date = request.args.get("date", "").strip()
+        selected_date_from = request.args.get("date_from", "").strip()
+        selected_date_to = request.args.get("date_to", "").strip()
 
-        return page, selected_course, selected_date
+        return page, selected_course, selected_date_from, selected_date_to
 
     def _fetch_registrations(
         base_condition: str,
         base_params: Tuple[object, ...],
         selected_course: str,
-        selected_date: str,
+        selected_date_from: str,
+        selected_date_to: str,
         page: int,
     ) -> Tuple[List[sqlite3.Row], bool]:
         per_page = 20
@@ -246,9 +259,13 @@ def register_routes(app: Flask) -> None:
             conditions.append("course_name = ?")
             params.append(selected_course)
 
-        if selected_date:
-            conditions.append("registration_date = ?")
-            params.append(selected_date)
+        if selected_date_from:
+            conditions.append("registration_date >= ?")
+            params.append(selected_date_from)
+
+        if selected_date_to:
+            conditions.append("registration_date <= ?")
+            params.append(selected_date_to)
 
         where_clause = " WHERE " + " AND ".join(conditions) if conditions else ""
 
@@ -273,12 +290,13 @@ def register_routes(app: Flask) -> None:
     @app.route("/")
     @login_required
     def dashboard():
-        page, selected_course, selected_date = _parse_filters()
+        page, selected_course, selected_date_from, selected_date_to = _parse_filters()
         registrations, has_next = _fetch_registrations(
             "status != ?",
             ("CALLED",),
             selected_course,
-            selected_date,
+            selected_date_from,
+            selected_date_to,
             page,
         )
 
@@ -288,7 +306,8 @@ def register_routes(app: Flask) -> None:
             page=page,
             has_next=has_next,
             selected_course=selected_course,
-            selected_date=selected_date,
+            selected_date_from=selected_date_from,
+            selected_date_to=selected_date_to,
             courses=COURSES,
             allow_call_action=True,
             pagination_endpoint="dashboard",
@@ -296,25 +315,28 @@ def register_routes(app: Flask) -> None:
                 "dashboard",
                 page=page - 1,
                 course=selected_course or None,
-                date=selected_date or None,
+                date_from=selected_date_from or None,
+                date_to=selected_date_to or None,
             ) if page > 1 else None,
             next_url=url_for(
                 "dashboard",
                 page=page + 1,
                 course=selected_course or None,
-                date=selected_date or None,
+                date_from=selected_date_from or None,
+                date_to=selected_date_to or None,
             ) if has_next else None,
         )
 
     @app.route("/called")
     @login_required
     def called_participants():
-        page, selected_course, selected_date = _parse_filters()
+        page, selected_course, selected_date_from, selected_date_to = _parse_filters()
         registrations, has_next = _fetch_registrations(
             "status = ?",
             ("CALLED",),
             selected_course,
-            selected_date,
+            selected_date_from,
+            selected_date_to,
             page,
         )
 
@@ -324,7 +346,8 @@ def register_routes(app: Flask) -> None:
             page=page,
             has_next=has_next,
             selected_course=selected_course,
-            selected_date=selected_date,
+            selected_date_from=selected_date_from,
+            selected_date_to=selected_date_to,
             courses=COURSES,
             allow_call_action=False,
             pagination_endpoint="called_participants",
@@ -332,13 +355,15 @@ def register_routes(app: Flask) -> None:
                 "called_participants",
                 page=page - 1,
                 course=selected_course or None,
-                date=selected_date or None,
+                date_from=selected_date_from or None,
+                date_to=selected_date_to or None,
             ) if page > 1 else None,
             next_url=url_for(
                 "called_participants",
                 page=page + 1,
                 course=selected_course or None,
-                date=selected_date or None,
+                date_from=selected_date_from or None,
+                date_to=selected_date_to or None,
             ) if has_next else None,
         )
 

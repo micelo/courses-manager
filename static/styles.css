@@ -30,7 +30,7 @@ a:hover {
 }
 
 .container {
-  width: min(1200px, 94vw);
+  width: min(1400px, 96vw);
   margin: 0 auto;
   padding: 1.5rem 0;
 }
